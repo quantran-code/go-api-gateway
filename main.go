@@ -1,20 +1,31 @@
-// Command api-gateway is the single entry point for the library API: it routes
-// /api/v1/members, /api/v1/books and /api/v1/loans to the service that owns each
-// resource, and stamps every request with a correlation id.
+// Command api-gateway is the address clients use for the library API.
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
-	cfg, err := ConfigFromEnv()
-	if err != nil {
-		log.Fatalf("configuration: %v", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-	log.Printf("api gateway listening on :%s", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, NewRouter(cfg)); err != nil {
-		log.Fatal(err)
-	}
+	log.Printf("api gateway listening on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, NewRouter()))
+}
+
+// NewRouter wires the routes the gateway answers itself. Everything else is
+// forwarded to the service that owns the resource.
+func NewRouter() http.Handler {
+	r := chi.NewRouter()
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+	return r
 }

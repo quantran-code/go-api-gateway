@@ -1,16 +1,14 @@
 # go-api-gateway
 
-Single entry point for the library API. Routes `/api/v1/members`, `/api/v1/books`
-and `/api/v1/loans` to the owning service and propagates `X-Request-Id` end to end.
+The address clients use for the library API.
 
 ```sh
-MEMBER_SERVICE_URL=http://localhost:8081 \
-CATALOG_SERVICE_URL=http://localhost:8082 \
-LOAN_SERVICE_URL=http://localhost:8083 \
-go run .
+PORT=8080 go run .
 ```
 
-* `GET /health` — the gateway itself is up.
-* A service that cannot be reached is answered `502 {"error":"upstream unavailable"}`.
+| Route | Behaviour |
+|---|---|
+| `GET /health` | `{"status":"ok"}` when the process is up |
 
-Run the tests with `go test ./...`.
+Members, books and loans are owned by their own services; the gateway is the only
+address a client needs. Run the tests with `go test ./...`.
