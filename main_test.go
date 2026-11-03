@@ -112,11 +112,11 @@ func TestRouterSendsEachPrefixToItsOwnService(t *testing.T) {
 		requestPath string
 		wantHit     string
 	}{
-		{name: "members sub path", resource: "members", requestPath: "/api/members/7", wantHit: "members /7"},
+		{name: "members sub path", resource: "members", requestPath: "/api/members/7", wantHit: "members /members/7"},
 		{name: "members bare prefix", resource: "members", requestPath: "/api/members", wantHit: "members /"},
-		{name: "books sub path", resource: "books", requestPath: "/api/books/7", wantHit: "books /7"},
+		{name: "books sub path", resource: "books", requestPath: "/api/books/7", wantHit: "books /books/7"},
 		{name: "books bare prefix", resource: "books", requestPath: "/api/books", wantHit: "books /"},
-		{name: "loans sub path", resource: "loans", requestPath: "/api/loans/7", wantHit: "loans /7"},
+		{name: "loans sub path", resource: "loans", requestPath: "/api/loans/7", wantHit: "loans /loans/7"},
 		{name: "loans bare prefix", resource: "loans", requestPath: "/api/loans", wantHit: "loans /"},
 	}
 

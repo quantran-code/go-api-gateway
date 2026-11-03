@@ -26,7 +26,8 @@ func main() {
 }
 
 // NewRouter wires the routes the gateway answers itself. Everything else is
-// forwarded to the service that owns the resource.
+// forwarded to the service that owns the resource. Every request is tagged with
+// an X-Request-ID that travels on to the service.
 func NewRouter(cfg Config) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -44,14 +45,16 @@ func NewRouter(cfg Config) http.Handler {
 	}
 
 	for _, resource := range resources {
+		// Only the /api prefix is stripped, by the proxy's own Director, so the
+		// resource name reaches the service as part of the path: /api/members/7
+		// arrives as /members/7, which is the route the service registers.
 		proxy := NewServiceProxy(resource.target, cfg.UpstreamTimeout)
-		// The resource prefix is stripped before the proxy sees the request, so
-		// only the part the service itself expects is forwarded.
-		handler := http.StripPrefix(resource.prefix, proxy)
 		// The two patterns cover the bare prefix and every sub-path under it.
-		r.Handle(resource.prefix, handler)
-		r.Handle(resource.prefix+"/*", handler)
+		r.Handle(resource.prefix, proxy)
+		r.Handle(resource.prefix+"/*", proxy)
 	}
 
-	return r
+	// The middleware wraps the whole router, so the responses the gateway
+	// answers itself are tagged as well as the proxied ones.
+	return RequestIDMiddleware(r)
 }
