@@ -212,6 +212,52 @@ func TestProxyForwardsBorrowRequestToTheLoanService(t *testing.T) {
 	}
 }
 
+func TestProxyForwardsReturnRequestToTheLoanService(t *testing.T) {
+	const returnedLoan = `{"id":1,"book_id":1,"member_id":7,"returned_at":"2024-05-01T10:00:00Z"}`
+
+	seen := make(chan upstreamRequest, 1)
+	proxy, upstream := newProxyFor(t, time.Second, func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading forwarded body: %v", err)
+		}
+		seen <- upstreamRequest{
+			Method: r.Method,
+			Path:   r.URL.Path,
+			Query:  r.URL.RawQuery,
+			Body:   string(body),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, returnedLoan)
+	})
+	defer upstream.Close()
+
+	rec := httptest.NewRecorder()
+	proxy.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/loans/1/return", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d (body %s)", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Body.String(); got != returnedLoan {
+		t.Fatalf("body = %q, want the loan service's body %q", got, returnedLoan)
+	}
+
+	got := <-seen
+	if got.Method != http.MethodPost {
+		t.Fatalf("upstream method = %q, want %q", got.Method, http.MethodPost)
+	}
+	if got.Path != "/loans/1/return" {
+		t.Fatalf("upstream path = %q, want %q", got.Path, "/loans/1/return")
+	}
+	if got.Query != "" {
+		t.Fatalf("upstream query = %q, want none", got.Query)
+	}
+	if got.Body != "" {
+		t.Fatalf("upstream body = %q, want none", got.Body)
+	}
+}
+
 func TestProxyForwardsTheBareAPIPrefixAsTheServiceRoot(t *testing.T) {
 	seen := make(chan string, 1)
 	proxy, upstream := newProxyFor(t, time.Second, func(w http.ResponseWriter, r *http.Request) {

@@ -128,6 +128,13 @@ func TestRouterSendsEachPrefixToItsOwnService(t *testing.T) {
 			body:        `{"book_id":1,"member_id":7}`,
 			wantHit:     "loans /loans",
 		},
+		{
+			name:        "return a loan goes to the loans service only",
+			resource:    "loans",
+			method:      http.MethodPost,
+			requestPath: "/api/loans/1/return",
+			wantHit:     "loans /loans/1/return",
+		},
 	}
 
 	for _, tc := range cases {
