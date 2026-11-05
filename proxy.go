@@ -45,7 +45,9 @@ func newUpstreamTransport(timeout time.Duration) *http.Transport {
 
 // stripAPIPrefix removes the leading apiPrefix from path. A path that is exactly
 // the prefix becomes "/" so the rewritten request never carries an empty path,
-// and a path that does not start with the prefix is returned unchanged.
+// and a path that does not start with the prefix is returned unchanged. The
+// resource name is part of what is kept: "/api/loans" becomes "/loans" and
+// "/api/members/7" becomes "/members/7".
 func stripAPIPrefix(path string) string {
 	if path == apiPrefix {
 		return "/"
@@ -54,15 +56,7 @@ func stripAPIPrefix(path string) string {
 		return path
 	}
 
-	trimmed := path[len(apiPrefix):]
-	rest := trimmed[1:]
-	// A path that names only the resource itself ("api/members") is the
-	// service root; a sub-path keeps the segments after the api prefix.
-	if rest != "" && !strings.Contains(rest, "/") {
-		return "/"
-	}
-
-	return trimmed
+	return path[len(apiPrefix):]
 }
 
 // joinServicePath puts the stripped request path under whatever path the service

@@ -46,8 +46,9 @@ func NewRouter(cfg Config) http.Handler {
 
 	for _, resource := range resources {
 		// Only the /api prefix is stripped, by the proxy's own Director, so the
-		// resource name reaches the service as part of the path: /api/members/7
-		// arrives as /members/7, which is the route the service registers.
+		// resource name is preserved: /api/loans reaches the loan service as
+		// /loans, and /api/members/7 arrives as /members/7, which is the route
+		// the service registers.
 		proxy := NewServiceProxy(resource.target, cfg.UpstreamTimeout)
 		// The two patterns cover the bare prefix and every sub-path under it.
 		r.Handle(resource.prefix, proxy)

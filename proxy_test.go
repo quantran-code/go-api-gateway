@@ -75,10 +75,10 @@ func TestProxyStripsAPIPrefixAndForwardsSubPaths(t *testing.T) {
 			wantQuery: "active=true",
 		},
 		{
-			name:     "bare prefix becomes the service root",
+			name:     "bare prefix keeps the resource name",
 			method:   http.MethodGet,
 			target:   "/api/members",
-			wantPath: "/",
+			wantPath: "/members",
 		},
 	}
 
@@ -168,6 +168,67 @@ func TestProxyForwardsEveryMethod(t *testing.T) {
 				t.Fatalf("body = %q, want %q", got, wantBody)
 			}
 		})
+	}
+}
+
+func TestProxyForwardsBorrowRequestToTheLoanService(t *testing.T) {
+	const borrowBody = `{"book_id":1,"member_id":7}`
+
+	seen := make(chan upstreamRequest, 1)
+	proxy, upstream := newProxyFor(t, time.Second, func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading forwarded body: %v", err)
+		}
+		seen <- upstreamRequest{
+			Method: r.Method,
+			Path:   r.URL.Path,
+			Query:  r.URL.RawQuery,
+			Body:   string(body),
+		}
+		w.WriteHeader(http.StatusCreated)
+	})
+	defer upstream.Close()
+
+	rec := httptest.NewRecorder()
+	proxy.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/loans", strings.NewReader(borrowBody)))
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d (body %s)", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+
+	got := <-seen
+	if got.Method != http.MethodPost {
+		t.Fatalf("upstream method = %q, want %q", got.Method, http.MethodPost)
+	}
+	if got.Path != "/loans" {
+		t.Fatalf("upstream path = %q, want %q", got.Path, "/loans")
+	}
+	if got.Query != "" {
+		t.Fatalf("upstream query = %q, want none", got.Query)
+	}
+	if got.Body != borrowBody {
+		t.Fatalf("upstream body = %q, want %q", got.Body, borrowBody)
+	}
+}
+
+func TestProxyForwardsTheBareAPIPrefixAsTheServiceRoot(t *testing.T) {
+	seen := make(chan string, 1)
+	proxy, upstream := newProxyFor(t, time.Second, func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	})
+	defer upstream.Close()
+
+	rec := httptest.NewRecorder()
+	proxy.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	if got := <-seen; got != "/" {
+		t.Fatalf("upstream path = %q, want %q", got, "/")
 	}
 }
 

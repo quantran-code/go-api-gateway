@@ -10,12 +10,13 @@ PORT=8080 go run .
 |---|---|
 | `GET /health` | `{"status":"ok"}` when the process is up |
 | `GET /api/members/{id}` | read one member; forwarded to the member service as `GET /members/{id}` |
+| `POST /api/loans` | borrow a book, with a body such as `{"book_id":1,"member_id":7}`; forwarded to the loan service as `POST /loans` |
 
 Members, books and loans are owned by their own services; the gateway is the only
 address a client needs. Only the `/api` prefix is stripped, so the resource name
-travels on with the request: `/api/members/7` reaches the member service as
-`/members/7`, and the bare `/api/members` reaches it as `/`. Run the tests with
-`go test ./...`.
+travels on with the request: `/api/loans` reaches the loan service as `/loans`,
+`/api/members/7` reaches the member service as `/members/7`, and the bare `/api`
+reaches the service as `/`. Run the tests with `go test ./...`.
 
 ## Correlation with `X-Request-ID`
 

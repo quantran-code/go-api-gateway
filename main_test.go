@@ -109,21 +109,40 @@ func TestRouterSendsEachPrefixToItsOwnService(t *testing.T) {
 	cases := []struct {
 		name        string
 		resource    string
+		method      string
 		requestPath string
+		body        string
 		wantHit     string
 	}{
 		{name: "members sub path", resource: "members", requestPath: "/api/members/7", wantHit: "members /members/7"},
-		{name: "members bare prefix", resource: "members", requestPath: "/api/members", wantHit: "members /"},
+		{name: "members bare prefix", resource: "members", requestPath: "/api/members", wantHit: "members /members"},
 		{name: "books sub path", resource: "books", requestPath: "/api/books/7", wantHit: "books /books/7"},
-		{name: "books bare prefix", resource: "books", requestPath: "/api/books", wantHit: "books /"},
+		{name: "books bare prefix", resource: "books", requestPath: "/api/books", wantHit: "books /books"},
 		{name: "loans sub path", resource: "loans", requestPath: "/api/loans/7", wantHit: "loans /loans/7"},
-		{name: "loans bare prefix", resource: "loans", requestPath: "/api/loans", wantHit: "loans /"},
+		{name: "loans bare prefix", resource: "loans", requestPath: "/api/loans", wantHit: "loans /loans"},
+		{
+			name:        "borrow a book goes to the loans service only",
+			resource:    "loans",
+			method:      http.MethodPost,
+			requestPath: "/api/loans",
+			body:        `{"book_id":1,"member_id":7}`,
+			wantHit:     "loans /loans",
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			method := tc.method
+			if method == "" {
+				method = http.MethodGet
+			}
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+
 			rec := httptest.NewRecorder()
-			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.requestPath, nil))
+			router.ServeHTTP(rec, httptest.NewRequest(method, tc.requestPath, body))
 
 			if rec.Code != http.StatusOK {
 				t.Fatalf("status = %d, want %d (body %s)", rec.Code, http.StatusOK, rec.Body.String())
